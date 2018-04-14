@@ -10,12 +10,14 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Switch;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
@@ -23,11 +25,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private static final String TAG = MapsActivity.class.getSimpleName();
 
-    public static final int LOCATION_UPDATE_MIN_DISTANCE = 10;
+    public static final float LOCATION_UPDATE_MIN_DISTANCE = 0.10f;
     public static final int LOCATION_UPDATE_MIN_TIME = 2000;
 
     private GoogleMap mMap;
     private LocationManager locationManager;
+    private Switch trackOnOff;
     private static final int LOCATION_REQUEST_CODE = 101;
 
     private LocationListener locationListener = new LocationListener() {
@@ -36,7 +39,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (location != null) {
                 Log.d(TAG,String.format("%f, %f", location.getLatitude(), location.getLongitude()));
                 drawMarker(location);
-                locationManager.removeUpdates(locationListener);
             } else {
                 Log.d(TAG,"Location is null");
             }
@@ -66,6 +68,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        trackOnOff = (Switch) findViewById(R.id.trackOnOff);
 
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
@@ -129,7 +133,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (mMap != null) {
             mMap.clear();
             LatLng gps = new LatLng(location.getLatitude(), location.getLongitude());
-            mMap.addMarker(new MarkerOptions()
+            mMap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_marker))
                     .position(gps)
                     .title("Current Position"));
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(gps, 12));
