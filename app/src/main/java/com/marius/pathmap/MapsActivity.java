@@ -1,18 +1,24 @@
 package com.marius.pathmap;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.PersistableBundle;
+import android.os.PowerManager;
 import android.support.v4.app.ActivityCompat;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.widget.CompoundButton;
 import android.widget.Switch;
 import android.widget.Toast;
 
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -20,25 +26,43 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
+import com.marius.pathmap.model.User;
+
+import java.util.ArrayList;
+import java.util.Calendar;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
 
     private static final String TAG = MapsActivity.class.getSimpleName();
 
-    public static final float LOCATION_UPDATE_MIN_DISTANCE = 0.10f;
-    public static final int LOCATION_UPDATE_MIN_TIME = 2000;
+    private static final int RELEASE_TIME_OUT = 10000;
+    private static final String WAKELOCK_TAG = "WakelockTag";
+
+    public static final float LOCATION_UPDATE_MIN_DISTANCE = 0.10F;
+    public static final int LOCATION_UPDATE_MIN_TIME = 1000;
 
     private GoogleMap mMap;
     private LocationManager locationManager;
     private Switch trackOnOff;
+    private boolean isTracking = false;
+    private PowerManager.WakeLock wakeLockForRelease = null;
     private static final int LOCATION_REQUEST_CODE = 101;
+
+    private LocationRequest locationRequest;
+    private static final long INTERVAL = 1000;
+    private static final long FASTEST_INTERVAL = 1000;
+    private static final float SMALLEST_DISPLACEMENT = 0.10F;
 
     private LocationListener locationListener = new LocationListener() {
         @Override
         public void onLocationChanged(Location location) {
             if (location != null) {
                 Log.d(TAG,String.format("%f, %f", location.getLatitude(), location.getLongitude()));
-                drawMarker(location);
+                User.getInstance().addPoint(new LatLng(location.getLatitude(), location.getLongitude()));
+                if(!isTracking) {
+                    drawMarker(location);
+                }
             } else {
                 Log.d(TAG,"Location is null");
             }
@@ -60,6 +84,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     };
 
+    @SuppressLint("RestrictedApi")
+    protected void createLocationRequest() {
+        locationRequest = new LocationRequest();
+        locationRequest.setInterval(INTERVAL);
+        locationRequest.setFastestInterval(FASTEST_INTERVAL);
+        locationRequest.setSmallestDisplacement(SMALLEST_DISPLACEMENT); //added
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -69,11 +102,59 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        PowerManager powerManager = (PowerManager)getApplicationContext().getSystemService(Context.POWER_SERVICE);
+        if (powerManager != null) {
+            wakeLockForRelease = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, WAKELOCK_TAG);
+            wakeLockForRelease.acquire(RELEASE_TIME_OUT);
+        }
+
+        createLocationRequest();
+
         trackOnOff = (Switch) findViewById(R.id.trackOnOff);
 
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
-        getCurrentLocation();
+        trackOnOff.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
+                if(isChecked){
+                    isTracking = true;
+                    if (User.getInstance() != null) {
+                        User.getInstance().addStartTime(Calendar.getInstance().getTime());
+                        drawLine(User.getInstance().getPoints());
+                    } else {
+                        Toast.makeText(getApplicationContext(), "Tracking is not working.", Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    isTracking = false;
+                    if(User.getInstance() != null){
+                        User.getInstance().addEndTime(Calendar.getInstance().getTime());
+                    }
+                    getCurrentLocation();
+                }
+            }
+        });
+
+        if(!isTracking){
+           getCurrentLocation();
+        }
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        wakeLockForRelease.release();
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
+        super.onSaveInstanceState(outState, outPersistentState);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
     }
 
 
@@ -137,6 +218,29 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .position(gps)
                     .title("Current Position"));
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(gps, 12));
+        }
+    }
+
+    private void drawLine(ArrayList<LatLng> points){
+        if(mMap != null) {
+            mMap.clear();  //clears all Markers and Polylines
+
+            if(points.size() == 0){
+                return;
+            }
+            LatLng current = null;
+            PolylineOptions options = new PolylineOptions().width(5).color(Color.BLACK).geodesic(true);
+            for (int i = 0; i < points.size(); i++) {
+                LatLng point = points.get(i);
+                current = point;
+                options.add(point);
+            }
+
+            mMap.addPolyline(options);
+            mMap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_marker))
+                    .position(current)
+                    .title("Current Position"));
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(points.get(0), 12));
         }
     }
 
