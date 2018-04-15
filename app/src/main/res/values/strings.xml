@@ -4,4 +4,6 @@
 
     <string name="error_location_provider">Error location provider</string>
     <string name="tracking_text_prompt">Tracking</string>
+    <string name="dialog_title">Your Journeys</string>
+    <string name="item_menu_name">Journeys</string>
 </resources>
