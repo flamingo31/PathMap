@@ -34,12 +34,28 @@ public class User {
     }
 
 
-    public boolean isEmpty() {
+    public boolean isPointsEmpty() {
         return points.size() == 0;
+    }
+
+    public boolean isStartTimeEmpty() {
+        return startTime.size() == 0;
+    }
+
+    public boolean isEndTimeEmpty() {
+        return endTime.size() == 0;
     }
 
     public void clear() {
         points.clear();
+    }
+
+    public void clearStartTimes() {
+        startTime.clear();
+    }
+
+    public void clearEndTimes() {
+        endTime.clear();
     }
 
     public void addPoint(LatLng point) {

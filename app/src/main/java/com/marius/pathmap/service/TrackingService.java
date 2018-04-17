@@ -31,9 +31,9 @@ import com.marius.pathmap.utils.PathMapSharedPreferences;
 public class TrackingService extends Service implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
     private static final String TAG = TrackingService.class.getSimpleName();
 
-    private static final long INTERVAL = 10;
-    private static final long FASTEST_INTERVAL = 10;
-    private static final float SMALLEST_DISPLACEMENT = 0.10F;
+    private static final long INTERVAL = 1000;
+    private static final long FASTEST_INTERVAL = 1000;
+    private static final float SMALLEST_DISPLACEMENT = 0.25F;
 
     public static final String ACTION = "com.marius.pathmap.service.TrackingService";
     private GoogleApiClient mGoogleApiClient;

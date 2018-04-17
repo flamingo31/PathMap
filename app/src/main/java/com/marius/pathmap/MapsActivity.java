@@ -58,9 +58,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private GoogleMap mMap;
     private Switch trackOnOff;
 
-    private static final long INTERVAL = 10;
-    private static final long FASTEST_INTERVAL = 10;
-    private static final float SMALLEST_DISPLACEMENT = 0.10F;
+    private static final long INTERVAL = 1000;
+    private static final long FASTEST_INTERVAL = 1000;
+    private static final float SMALLEST_DISPLACEMENT = 0.25F;
 
     private GoogleApiClient mGoogleApiClient;
     private Location mLastLocation;
@@ -102,19 +102,23 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     PathMapSharedPreferences.getInstance(getApplicationContext()).saveTrackingState(true);
                     Intent intent = new Intent(getApplicationContext(), TrackingService.class);
                     startService(intent);
-                    if (User.getInstance() != null) {
+                    if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addStartTime(Calendar.getInstance().getTime());
                     } else {
-                        Toast.makeText(getApplicationContext(), "Tracking is not working.", Toast.LENGTH_LONG).show();
+                        Toast.makeText(getApplicationContext(), "Tracking service is not working.", Toast.LENGTH_LONG).show();
                     }
                 } else if(!isChecked){
-                    if(User.getInstance() != null){
+                    if(!User.getInstance().isPointsEmpty()){
                         User.getInstance().addEndTime(Calendar.getInstance().getTime());
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
                     List<LatLng> locationPoints = getPoints(User.getInstance().getPoints());
-                    markDynamicLocationOnMap(mMap, locationPoints);
-                    showCurrentPosition(mMap, locationPoints.get(0));
+                    if(locationPoints.size() > 0){
+                        markDynamicLocationOnMap(mMap, locationPoints);
+                        showCurrentPosition(mMap, locationPoints.get(0));
+                    } else {
+                        Toast.makeText(getApplicationContext(), "There is a service error. Try to reload the app.", Toast.LENGTH_LONG).show();
+                    }
                 }
             }
         });
@@ -140,7 +144,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
-        if(User.getInstance() != null){
+        if(!User.getInstance().isPointsEmpty()){
             outState.putParcelableArrayList(SAVING_STATE_POINTS, User.getInstance().getPoints());
         }
         super.onSaveInstanceState(outState, outPersistentState);
@@ -149,7 +153,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        if(User.getInstance().getPoints() == null){
+        if(User.getInstance().isPointsEmpty()){
             User.getInstance().setPoints(savedInstanceState.getParcelableArrayList(SAVING_STATE_POINTS));
         }
     }
@@ -192,7 +196,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 longitudeValue = mLastLocation.getLongitude();
                                 Log.d(TAG, "Latitude 4: " + latitudeValue + " Longitude 4: " + longitudeValue);
                                 refreshMap(mMap);
-                                if(User.getInstance().getPoints() != null){
+                                if(!User.getInstance().isPointsEmpty()){
                                     mlocationPoints.add(new LatLng(latitudeValue, longitudeValue));
                                     markDynamicLocationOnMap(mMap, mlocationPoints);
                                     showCurrentPosition(mMap, new LatLng(latitudeValue, longitudeValue));
