@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Geocoder;
 import android.location.Location;
 import android.os.PersistableBundle;
 import android.support.annotation.NonNull;
@@ -23,6 +24,7 @@ import android.widget.CompoundButton;
 import android.widget.Switch;
 import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
@@ -38,18 +40,25 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.marius.pathmap.gps.GPSTracker;
 import com.marius.pathmap.model.User;
 import com.marius.pathmap.service.TrackingService;
 import com.marius.pathmap.utils.PathMapSharedPreferences;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks{
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener,
+        GoogleMap.OnInfoWindowClickListener,
+        GoogleMap.OnMapLongClickListener,
+        GoogleMap.OnMarkerClickListener {
 
     private static final String TAG = MapsActivity.class.getSimpleName();
 
@@ -62,6 +71,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private static final long FASTEST_INTERVAL = 1000;
     private static final float SMALLEST_DISPLACEMENT = 0.25F;
 
+    private static final int PERMISSION_LOCATION_REQUEST_CODE = 101;
+
     private GoogleApiClient mGoogleApiClient;
     private Location mLastLocation;
     private LocationRequest mLocationRequest;
@@ -70,6 +81,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private RouteBroadCastReceiver routeReceiver;
     private List<LatLng> startToPresentLocations;
     private List<LatLng> mlocationPoints;
+    private List<LatLng> gpslocationPoints;
+    private GPSTracker gps;
 
 
     @Override
@@ -80,11 +93,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (mGoogleApiClient == null) {
             mGoogleApiClient = new GoogleApiClient.Builder(this)
                     .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
                     .addApi(LocationServices.API)
                     .build();
         }
+        ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_LOCATION_REQUEST_CODE);
+        gps = new GPSTracker(this);
         startToPresentLocations = User.getInstance().getPoints();
         mlocationPoints = new ArrayList<>();
+        gpslocationPoints = new ArrayList<>();
         mLocationRequest = createLocationRequest();
         routeReceiver = new RouteBroadCastReceiver();
 
@@ -98,30 +115,54 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         trackOnOff.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean isChecked) {
-                if(isChecked){
+                if (isChecked) {
                     PathMapSharedPreferences.getInstance(getApplicationContext()).saveTrackingState(true);
                     Intent intent = new Intent(getApplicationContext(), TrackingService.class);
                     startService(intent);
                     if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addStartTime(Calendar.getInstance().getTime());
                     } else {
-                        Toast.makeText(getApplicationContext(), "Tracking service is not working.", Toast.LENGTH_LONG).show();
+                        if (gps.canGetLocation()) {
+                            User.getInstance().addStartTime(Calendar.getInstance().getTime());
+                            double latitude = gps.getLatitude();
+                            double longitude = gps.getLongitude();
+                            gpslocationPoints.add(new LatLng(latitude, longitude));
+                            markDynamicLocationOnMap(mMap, gpslocationPoints);
+                            drawRouteOnMap(mMap, gpslocationPoints);
+                        } else {
+                            Toast.makeText(getApplicationContext(), "Tracking service(on network/gps) is not working.", Toast.LENGTH_LONG).show();
+                        }
                     }
-                } else if(!isChecked){
-                    if(!User.getInstance().isPointsEmpty()){
+                } else if (!isChecked) {
+                    if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addEndTime(Calendar.getInstance().getTime());
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
                     List<LatLng> locationPoints = getPoints(User.getInstance().getPoints());
-                    if(locationPoints.size() > 0){
+                    if (locationPoints.size() > 0) {
                         markDynamicLocationOnMap(mMap, locationPoints);
-                        showCurrentPosition(mMap, locationPoints.get(0));
                     } else {
-                        Toast.makeText(getApplicationContext(), "There is a service error. Try to reload the app.", Toast.LENGTH_LONG).show();
+                        gpslocationPoints.clear();
+                        if (gps.canGetLocation()) {
+                            User.getInstance().addEndTime(Calendar.getInstance().getTime());
+                            double latitude = gps.getLatitude();
+                            double longitude = gps.getLongitude();
+                            gpslocationPoints.add(new LatLng(latitude, longitude));
+                            markDynamicLocationOnMap(mMap, gpslocationPoints);
+                        } else {
+                            Toast.makeText(getApplicationContext(), "There is a service error. Try to reload the app.", Toast.LENGTH_LONG).show();
+                        }
                     }
                 }
             }
         });
+
+    }
+
+    private void initListeners() {
+        mMap.setOnMarkerClickListener(this);
+        mMap.setOnMapLongClickListener(this);
+        mMap.setOnInfoWindowClickListener(this);
     }
 
     @Override
@@ -144,7 +185,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
-        if(!User.getInstance().isPointsEmpty()){
+        if (!User.getInstance().isPointsEmpty()) {
             outState.putParcelableArrayList(SAVING_STATE_POINTS, User.getInstance().getPoints());
         }
         super.onSaveInstanceState(outState, outPersistentState);
@@ -153,8 +194,25 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        if(User.getInstance().isPointsEmpty()){
+        if (User.getInstance().isPointsEmpty()) {
             User.getInstance().setPoints(savedInstanceState.getParcelableArrayList(SAVING_STATE_POINTS));
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_LOCATION_REQUEST_CODE:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    if (gps.canGetLocation()) {
+                        double latitude = gps.getLatitude();
+                        double longitude = gps.getLongitude();
+                        gpslocationPoints.add(new LatLng(latitude, longitude));
+                        markDynamicLocationOnMap(mMap, gpslocationPoints);
+                    }
+                } else
+                    Toast.makeText(this, "Location Permission Denied", Toast.LENGTH_SHORT).show();
+                break;
         }
     }
 
@@ -162,19 +220,57 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        initListeners();
     }
 
-    private void markStartingLocationOnMap(GoogleMap mapObject, LatLng location){
+    private void markStartingLocationOnMap(GoogleMap mapObject, LatLng location) {
         mapObject.addMarker(new MarkerOptions().position(location).title("Current location"));
-        mapObject.moveCamera(CameraUpdateFactory.newLatLng(location));
+        initCamera(mapObject,location);
     }
 
-    private void markDynamicLocationOnMap(GoogleMap mapObject, List<LatLng> locations){
-        for(LatLng location : locations) {
+    private void markDynamicLocationOnMap(GoogleMap mapObject, List<LatLng> locations) {
+        for (LatLng location : locations) {
             refreshMap(mMap);
             mapObject.addMarker(new MarkerOptions().position(location).title("Current location"));
-            mapObject.moveCamera(CameraUpdateFactory.newLatLng(location));
+            initCamera(mapObject,location);
         }
+    }
+
+    private void initCamera(GoogleMap mapObject, LatLng location) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        }
+        CameraPosition position = CameraPosition.builder()
+                .target(location)
+                .zoom(16f)
+                .bearing(0.0f)
+                .tilt(0.0f)
+                .build();
+
+        mapObject.animateCamera(CameraUpdateFactory
+                .newCameraPosition(position), null);
+
+        mapObject.setTrafficEnabled(true);
+        mapObject.setMyLocationEnabled(true);
+        mapObject.getUiSettings().setZoomControlsEnabled( true );
+    }
+
+    private String getAddressFromLatLng(LatLng latLng) {
+        Geocoder geocoder = new Geocoder(this);
+        String address = "";
+        try {
+            address = geocoder
+                    .getFromLocation( latLng.latitude, latLng.longitude, 1 )
+                    .get( 0 ).getAddressLine( 0 );
+        } catch (IOException e ) {
+            Toast.makeText(getApplicationContext(), "No marker information at this moment.", Toast.LENGTH_LONG).show();
+        }
+        return address;
+    }
+
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        marker.showInfoWindow();
+        return true;
     }
 
     @Override
@@ -199,10 +295,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 if(!User.getInstance().isPointsEmpty()){
                                     mlocationPoints.add(new LatLng(latitudeValue, longitudeValue));
                                     markDynamicLocationOnMap(mMap, mlocationPoints);
-                                    showCurrentPosition(mMap, new LatLng(latitudeValue, longitudeValue));
                                 } else {
                                     markStartingLocationOnMap(mMap, new LatLng(latitudeValue, longitudeValue));
-                                    showCurrentPosition(mMap, new LatLng(latitudeValue, longitudeValue));
                                 }
                             }
                         }
@@ -216,6 +310,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onConnectionSuspended(int i) {
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+        Log.d(TAG, "Connection method call failed");
+    }
+
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+
+    }
+
+    @Override
+    public void onMapLongClick(LatLng latLng) {
+
     }
 
     private class RouteBroadCastReceiver extends BroadcastReceiver {
@@ -243,18 +352,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             points.add(new LatLng(mLocation.latitude, mLocation.longitude));
         }
         return points;
-    }
-
-    private void showCurrentPosition(GoogleMap map, LatLng location){
-        if(map == null){
-            Log.d(TAG, "Map object is not null");
-            return;
-        }
-        CameraPosition cameraPosition = new CameraPosition.Builder()
-                .target(location)
-                .zoom(16)
-                .build();
-        map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
     }
 
     private void drawRouteOnMap(GoogleMap map, List<LatLng> positions){
