@@ -119,9 +119,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     PathMapSharedPreferences.getInstance(getApplicationContext()).saveTrackingState(true);
                     Intent intent = new Intent(getApplicationContext(), TrackingService.class);
                     startService(intent);
+                    Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_on), Toast.LENGTH_LONG).show();
                     if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addStartTime(Calendar.getInstance().getTime());
-                        Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_on), Toast.LENGTH_LONG).show();
                     } else {
                         if (gps.canGetLocation()) {
                             User.getInstance().addStartTime(Calendar.getInstance().getTime());
@@ -135,9 +135,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         }
                     }
                 } else if (!isChecked) {
+                    Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_off), Toast.LENGTH_LONG).show();
                     if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addEndTime(Calendar.getInstance().getTime());
-                        Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_off), Toast.LENGTH_LONG).show();
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
                     List<LatLng> locationPoints = getPoints(User.getInstance().getPoints());
