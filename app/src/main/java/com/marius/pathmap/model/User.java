@@ -15,8 +15,8 @@ public class User {
     private ArrayList<Date> endTime;
     private HashMap<Integer, ArrayList<LatLng>> routeTracks;
     private int keyItem;
-    private String addressStart;
-    private String addressEnd;
+    private ArrayList<String> addressStart;
+    private ArrayList<String> addressEnd;
 
 
 
@@ -25,8 +25,8 @@ public class User {
         startTime = new ArrayList<>();
         endTime = new ArrayList<>();
         routeTracks = new HashMap<>();
-        addressStart = "";
-        addressEnd = "";
+        addressStart = new ArrayList<>();
+        addressEnd = new ArrayList<>();
         keyItem = 0;
     }
 
@@ -56,7 +56,7 @@ public class User {
         return endTime.size() == 0;
     }
 
-    public void clear() {
+    public void clearPoints() {
         points.clear();
     }
 
@@ -68,6 +68,9 @@ public class User {
         endTime.clear();
     }
 
+    public void clearAddressStart(){ addressStart.clear(); }
+
+    public void clearAddressEnd(){ addressEnd.clear(); }
 
     public void addPoint(LatLng point) {
         points.add(point);
@@ -79,6 +82,14 @@ public class User {
 
     public void addEndTime(Date end) {
         endTime.add(end);
+    }
+
+    public void addAddressStart(String address){
+        this.addressStart.add(address);
+    }
+
+    public void addAddressEnd(String address){
+        this.addressEnd.add(address);
     }
 
     public ArrayList<LatLng> getPoints() {
@@ -97,19 +108,19 @@ public class User {
         return endTime;
     }
 
-    public String getAddressStart() {
+    public ArrayList<String> getAddressStart() {
         return addressStart;
     }
 
-    public void setAddressStart(String addressStart) {
+    public void setAddressStart(ArrayList<String> addressStart) {
         this.addressStart = addressStart;
     }
 
-    public String getAddressEnd() {
+    public ArrayList<String> getAddressEnd() {
         return addressEnd;
     }
 
-    public void setAddressEnd(String addressEnd) {
+    public void setAddressEnd(ArrayList<String> addressEnd) {
         this.addressEnd = addressEnd;
     }
 

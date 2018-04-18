@@ -85,7 +85,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private RouteBroadCastReceiver routeReceiver;
     private List<LatLng> startToPresentLocations;
     private List<LatLng> mlocationPoints;
-    private List<LatLng> gpslocationPoints;
 
 
     @Override
@@ -102,7 +101,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
         startToPresentLocations = User.getInstance().getPoints();
         mlocationPoints = new ArrayList<>();
-        gpslocationPoints = new ArrayList<>();
         mLocationRequest = createLocationRequest();
         routeReceiver = new RouteBroadCastReceiver();
 
@@ -131,9 +129,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addEndTime(Calendar.getInstance().getTime());
                         User.getInstance().saveRouteTracks(User.getInstance().getPoints());
-                        secureDataRouteTracking(User.getInstance().getAddressStart(), User.getInstance().getAddressEnd(),
-                                User.getInstance().getStartTime(), User.getInstance().getEndTime(),
-                                User.getInstance().getRouteTracks());
+                        try {
+                            secureDataRouteTracking(User.getInstance().getAddressStart(), User.getInstance().getAddressEnd(),
+                                    User.getInstance().getStartTime(), User.getInstance().getEndTime(),
+                                    User.getInstance().getRouteTracks());
+                        } catch (Exception ex){
+                            Log.d(TAG, ex.getLocalizedMessage());
+                        }
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
                     PathMapSharedPreferences.getInstance(getApplicationContext()).saveTrackingState(false);
@@ -206,11 +208,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         initListeners();
-    }
-
-    private void markStartingLocationOnMap(GoogleMap mapObject, LatLng location) {
-        mapObject.addMarker(new MarkerOptions().position(location).title(getAddressFromLatLng(location)));
-        initCamera(mapObject,location);
     }
 
     private void markDynamicLocationOnMap(GoogleMap mapObject, List<LatLng> locations) {
@@ -313,7 +310,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                     markDynamicLocationOnMap(mMap, mlocationPoints);
                                     User.getInstance().addPoint(new LatLng(latitudeValue, longitudeValue));
                                 } else {
-                                    markStartingLocationOnMap(mMap, new LatLng(latitudeValue, longitudeValue));
+                                    mlocationPoints.add(new LatLng(latitudeValue, longitudeValue));
+                                    markDynamicLocationOnMap(mMap, mlocationPoints);
                                 }
                             }
                         }
@@ -341,8 +339,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-
+       // Here we can add a marker that displays some location information
     }
+
+
 
     private class RouteBroadCastReceiver extends BroadcastReceiver {
         @Override
@@ -375,24 +375,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
         options.addAll(positions);
         Polyline polyline = map.addPolyline(options);
-        User.getInstance().setAddressStart(getAddressFromLatLng(positions.get(0)));
+        User.getInstance().addAddressStart(getAddressFromLatLng(positions.get(0)));
         for(LatLng location : positions) {
-            User.getInstance().setAddressEnd(getAddressFromLatLng(location));
+            User.getInstance().addAddressEnd(getAddressFromLatLng(location));
             initCamera(map, location);
         }
     }
 
-    private void secureDataRouteTracking(String addressStart, String addressEnd,
+    private void secureDataRouteTracking(ArrayList<String> addressStart, ArrayList<String> addressEnd,
                                          ArrayList<Date> startTime, ArrayList<Date> endTime,
                                          HashMap<Integer, ArrayList<LatLng>> routeTracks){
         final String FILE_NAME = "user_route_tracking.txt";
         StringBuilder buildDataString = new StringBuilder();
-        for(int i = 0; i < routeTracks.keySet().size(); i++){
-            buildDataString.append(addressStart);
+        for(int i = 0, j = 0; i < routeTracks.keySet().size() && (j < addressStart.size() && j < addressEnd.size()); i++, j++){
+            buildDataString.append(addressStart.get(j));
             buildDataString.append(" ");
             buildDataString.append(startTime.get(i));
             buildDataString.append(" - ");
-            buildDataString.append(addressEnd);
+            buildDataString.append(addressEnd.get(j));
             buildDataString.append(" ");
             buildDataString.append(endTime.get(i));
             buildDataString.append(": { ");
@@ -418,7 +418,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if (fos != null) {
                     fos.close();
                 }
-                Log.d(TAG, "DATA IS SECURE");
+                Log.d(TAG, "DATA IS SECURED");
             } catch (IOException e) {
                 e.printStackTrace();
             }
