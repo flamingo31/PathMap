@@ -138,15 +138,17 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_off), Toast.LENGTH_LONG).show();
                     if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addEndTime(Calendar.getInstance().getTime());
+                        User.getInstance().saveRouteTracks(User.getInstance().getPoints());
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
                     List<LatLng> locationPoints = getPoints(User.getInstance().getPoints());
                     if (locationPoints.size() > 0) {
                         markDynamicLocationOnMap(mMap, locationPoints);
                     } else {
+                        User.getInstance().addEndTime(Calendar.getInstance().getTime());
+                        User.getInstance().saveRouteTracks((ArrayList<LatLng>) gpslocationPoints);
                         gpslocationPoints.clear();
                         if (gps.canGetLocation()) {
-                            User.getInstance().addEndTime(Calendar.getInstance().getTime());
                             double latitude = gps.getLatitude();
                             double longitude = gps.getLongitude();
                             gpslocationPoints.add(new LatLng(latitude, longitude));
@@ -390,7 +392,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
         options.addAll(positions);
         Polyline polyline = map.addPolyline(options);
+        User.getInstance().setAddressStart(getAddressFromLatLng(positions.get(0)));
         for(LatLng location : positions) {
+            User.getInstance().setAddressEnd(getAddressFromLatLng(location));
             initCamera(map, location);
         }
     }

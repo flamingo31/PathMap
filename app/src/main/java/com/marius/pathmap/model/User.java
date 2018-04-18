@@ -5,6 +5,7 @@ import com.google.android.gms.maps.model.LatLng;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 
 public class User {
 
@@ -12,12 +13,21 @@ public class User {
     private ArrayList<LatLng> points;
     private ArrayList<Date> startTime;
     private ArrayList<Date> endTime;
+    private HashMap<Integer, ArrayList<LatLng>> routeTracks;
+    private int keyItem;
+    private String addressStart;
+    private String addressEnd;
+
 
 
     private User() {
         points = new ArrayList<>();
         startTime = new ArrayList<>();
         endTime = new ArrayList<>();
+        routeTracks = new HashMap<>();
+        addressStart = "";
+        addressEnd = "";
+        keyItem = 0;
     }
 
     public static synchronized User getInstance() {
@@ -58,28 +68,17 @@ public class User {
         endTime.clear();
     }
 
+
     public void addPoint(LatLng point) {
         points.add(point);
-    }
-
-    public LatLng getPointByIndex(int id) {
-        return points.get(id);
     }
 
     public void addStartTime(Date start) {
         startTime.add(start);
     }
 
-    public Date getStartTimetByIndex(int id) {
-        return startTime.get(id);
-    }
-
     public void addEndTime(Date end) {
         endTime.add(end);
-    }
-
-    public Date getEndTimetByIndex(int id) {
-        return endTime.get(id);
     }
 
     public ArrayList<LatLng> getPoints() {
@@ -97,4 +96,33 @@ public class User {
     public ArrayList<Date> getEndTime() {
         return endTime;
     }
+
+    public String getAddressStart() {
+        return addressStart;
+    }
+
+    public void setAddressStart(String addressStart) {
+        this.addressStart = addressStart;
+    }
+
+    public String getAddressEnd() {
+        return addressEnd;
+    }
+
+    public void setAddressEnd(String addressEnd) {
+        this.addressEnd = addressEnd;
+    }
+
+    public void saveRouteTracks(ArrayList<LatLng> points){
+        if(points.size() == 0){
+            return;
+        }
+        routeTracks.put(keyItem, points);
+        ++keyItem;
+    }
+
+    public HashMap<Integer, ArrayList<LatLng>> getRouteTracks() {
+        return routeTracks;
+    }
+
 }
