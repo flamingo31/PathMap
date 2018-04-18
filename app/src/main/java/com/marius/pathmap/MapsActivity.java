@@ -121,6 +121,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     startService(intent);
                     if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addStartTime(Calendar.getInstance().getTime());
+                        Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_on), Toast.LENGTH_LONG).show();
                     } else {
                         if (gps.canGetLocation()) {
                             User.getInstance().addStartTime(Calendar.getInstance().getTime());
@@ -130,12 +131,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             markDynamicLocationOnMap(mMap, gpslocationPoints);
                             drawRouteOnMap(mMap, gpslocationPoints);
                         } else {
-                            Toast.makeText(getApplicationContext(), "Tracking service(on network/gps) is not working.", Toast.LENGTH_LONG).show();
+                            Toast.makeText(getApplicationContext(), getString(R.string.tracking_service_not_working), Toast.LENGTH_LONG).show();
                         }
                     }
                 } else if (!isChecked) {
                     if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addEndTime(Calendar.getInstance().getTime());
+                        Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_off), Toast.LENGTH_LONG).show();
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
                     List<LatLng> locationPoints = getPoints(User.getInstance().getPoints());
@@ -150,7 +152,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                             gpslocationPoints.add(new LatLng(latitude, longitude));
                             markDynamicLocationOnMap(mMap, gpslocationPoints);
                         } else {
-                            Toast.makeText(getApplicationContext(), "There is a service error. Try to reload the app.", Toast.LENGTH_LONG).show();
+                            Toast.makeText(getApplicationContext(), getString(R.string.service_error), Toast.LENGTH_LONG).show();
                         }
                     }
                 }
@@ -211,7 +213,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         markDynamicLocationOnMap(mMap, gpslocationPoints);
                     }
                 } else
-                    Toast.makeText(this, "Location Permission Denied", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, getString(R.string.location_permission_denied), Toast.LENGTH_SHORT).show();
                 break;
         }
     }
@@ -388,11 +390,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
         options.addAll(positions);
         Polyline polyline = map.addPolyline(options);
-        CameraPosition cameraPosition = new CameraPosition.Builder()
-                .target(new LatLng(positions.get(0).latitude, positions.get(0).longitude))
-                .zoom(17)
-                .build();
-        map.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+        for(LatLng location : positions) {
+            initCamera(map, location);
+        }
     }
 
     private void refreshMap(GoogleMap mapInstance){
