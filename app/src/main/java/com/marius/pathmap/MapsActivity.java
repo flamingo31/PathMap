@@ -438,7 +438,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     protected void onDestroy() {
-        if(gps != null) {
+        if(gps.canGetLocation()) {
             gps.stopUsingGPS();
         }
         super.onDestroy();
