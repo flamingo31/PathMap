@@ -14,7 +14,7 @@
 
     <string name="route_tracking_on">Route tracking service is ON</string>
     <string name="route_tracking_off">Route tracking service is OFF</string>
-    <string name="tracking_service_not_working">Tracking service(on network/gps) is not working</string>
+    <string name="tracking_service_not_working">Tracking service(on network/location) is not working</string>
     <string name="service_error">There is a service error. Try to reload the app</string>
 
     <string name="location_permission_denied">Location Permission Denied</string>

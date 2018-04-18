@@ -45,14 +45,17 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
-import com.marius.pathmap.gps.GPSTracker;
 import com.marius.pathmap.model.User;
 import com.marius.pathmap.service.TrackingService;
 import com.marius.pathmap.utils.PathMapSharedPreferences;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
@@ -83,7 +86,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private List<LatLng> startToPresentLocations;
     private List<LatLng> mlocationPoints;
     private List<LatLng> gpslocationPoints;
-    private GPSTracker gps;
 
 
     @Override
@@ -98,7 +100,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .addApi(LocationServices.API)
                     .build();
         }
-        gps = new GPSTracker(this);
         startToPresentLocations = User.getInstance().getPoints();
         mlocationPoints = new ArrayList<>();
         gpslocationPoints = new ArrayList<>();
@@ -123,39 +124,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addStartTime(Calendar.getInstance().getTime());
                     } else {
-                        if (gps.canGetLocation()) {
-                            User.getInstance().addStartTime(Calendar.getInstance().getTime());
-                            double latitude = gps.getLatitude();
-                            double longitude = gps.getLongitude();
-                            gpslocationPoints.add(new LatLng(latitude, longitude));
-                            markDynamicLocationOnMap(mMap, gpslocationPoints);
-                            drawRouteOnMap(mMap, gpslocationPoints);
-                        } else {
-                            Toast.makeText(getApplicationContext(), getString(R.string.tracking_service_not_working), Toast.LENGTH_LONG).show();
-                        }
+                        Toast.makeText(getApplicationContext(), getString(R.string.tracking_service_not_working), Toast.LENGTH_LONG).show();
                     }
                 } else if (!isChecked) {
                     Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_off), Toast.LENGTH_LONG).show();
                     if (!User.getInstance().isPointsEmpty()) {
                         User.getInstance().addEndTime(Calendar.getInstance().getTime());
                         User.getInstance().saveRouteTracks(User.getInstance().getPoints());
+                        secureDataRouteTracking(User.getInstance().getAddressStart(), User.getInstance().getAddressEnd(),
+                                User.getInstance().getStartTime(), User.getInstance().getEndTime(),
+                                User.getInstance().getRouteTracks());
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
+                    PathMapSharedPreferences.getInstance(getApplicationContext()).saveTrackingState(false);
                     List<LatLng> locationPoints = getPoints(User.getInstance().getPoints());
                     if (locationPoints.size() > 0) {
                         markDynamicLocationOnMap(mMap, locationPoints);
                     } else {
-                        User.getInstance().addEndTime(Calendar.getInstance().getTime());
-                        User.getInstance().saveRouteTracks((ArrayList<LatLng>) gpslocationPoints);
-                        gpslocationPoints.clear();
-                        if (gps.canGetLocation()) {
-                            double latitude = gps.getLatitude();
-                            double longitude = gps.getLongitude();
-                            gpslocationPoints.add(new LatLng(latitude, longitude));
-                            markDynamicLocationOnMap(mMap, gpslocationPoints);
-                        } else {
-                            Toast.makeText(getApplicationContext(), getString(R.string.service_error), Toast.LENGTH_LONG).show();
-                        }
+                        Toast.makeText(getApplicationContext(), getString(R.string.service_error), Toast.LENGTH_LONG).show();
                     }
                 }
             }
@@ -208,12 +194,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         switch (requestCode) {
             case PERMISSION_LOCATION_REQUEST_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (gps.canGetLocation()) {
-                        double latitude = gps.getLatitude();
-                        double longitude = gps.getLongitude();
-                        gpslocationPoints.add(new LatLng(latitude, longitude));
-                        markDynamicLocationOnMap(mMap, gpslocationPoints);
-                    }
+
                 } else
                     Toast.makeText(this, getString(R.string.location_permission_denied), Toast.LENGTH_SHORT).show();
                 break;
@@ -242,6 +223,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void initCamera(GoogleMap mapObject, LatLng location) {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_LOCATION_REQUEST_CODE);
         }
         CameraPosition position = CameraPosition.builder()
                 .target(location)
@@ -253,7 +235,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapObject.animateCamera(CameraUpdateFactory
                 .newCameraPosition(position), null);
 
-        mapObject.setTrafficEnabled(true);
+        //mapObject.setTrafficEnabled(true);
         mapObject.setMyLocationEnabled(true);
         mapObject.getUiSettings().setZoomControlsEnabled( true );
     }
@@ -326,9 +308,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 longitudeValue = mLastLocation.getLongitude();
                                 Log.d(TAG, "Latitude 4: " + latitudeValue + " Longitude 4: " + longitudeValue);
                                 refreshMap(mMap);
-                                if(!User.getInstance().isPointsEmpty()){
+                                if(!PathMapSharedPreferences.getInstance(getApplicationContext()).getTrackingState()){
                                     mlocationPoints.add(new LatLng(latitudeValue, longitudeValue));
                                     markDynamicLocationOnMap(mMap, mlocationPoints);
+                                    User.getInstance().addPoint(new LatLng(latitudeValue, longitudeValue));
                                 } else {
                                     markStartingLocationOnMap(mMap, new LatLng(latitudeValue, longitudeValue));
                                 }
@@ -399,6 +382,49 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    private void secureDataRouteTracking(String addressStart, String addressEnd,
+                                         ArrayList<Date> startTime, ArrayList<Date> endTime,
+                                         HashMap<Integer, ArrayList<LatLng>> routeTracks){
+        final String FILE_NAME = "user_route_tracking.txt";
+        StringBuilder buildDataString = new StringBuilder();
+        for(int i = 0; i < routeTracks.keySet().size(); i++){
+            buildDataString.append(addressStart);
+            buildDataString.append(" ");
+            buildDataString.append(startTime.get(i));
+            buildDataString.append(" - ");
+            buildDataString.append(addressEnd);
+            buildDataString.append(" ");
+            buildDataString.append(endTime.get(i));
+            buildDataString.append(": { ");
+            for(int k = 0; k < routeTracks.get(i).size(); k++) {
+                buildDataString.append(routeTracks.get(i).get(k).toString());
+                buildDataString.append(" ; ");
+            }
+            buildDataString.append(" }");
+            buildDataString.append(System.getProperty("line.separator"));
+        }
+        String fileContents = buildDataString.toString();
+
+        FileOutputStream fos = null;
+        try {
+            fos = openFileOutput(FILE_NAME, Context.MODE_PRIVATE);
+            fos.write(fileContents.getBytes());
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (fos != null) {
+                    fos.close();
+                }
+                Log.d(TAG, "DATA IS SECURE");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private void refreshMap(GoogleMap mapInstance){
         mapInstance.clear();
     }
@@ -438,14 +464,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onStop() {
         mGoogleApiClient.disconnect();
         super.onStop();
-    }
-
-    @Override
-    protected void onDestroy() {
-        if(gps.canGetLocation()) {
-            gps.stopUsingGPS();
-        }
-        super.onDestroy();
     }
 
     private void showJourneysList(){
