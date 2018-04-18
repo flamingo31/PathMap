@@ -6,4 +6,9 @@
     <string name="tracking_text_prompt">Tracking</string>
     <string name="dialog_title">Your Journeys</string>
     <string name="item_menu_name">Journeys</string>
+
+    <string name="invalid_lat_long_used">Invalid latitude and longitude used</string>
+    <string name="service_not_available">Service not available</string>
+    <string name="no_address_found">No address found</string>
+    <string name="address_found">Address found</string>
 </resources>

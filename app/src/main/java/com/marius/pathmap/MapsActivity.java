@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.os.PersistableBundle;
@@ -97,7 +98,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .addApi(LocationServices.API)
                     .build();
         }
-        ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_LOCATION_REQUEST_CODE);
         gps = new GPSTracker(this);
         startToPresentLocations = User.getInstance().getPoints();
         mlocationPoints = new ArrayList<>();
@@ -224,14 +224,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void markStartingLocationOnMap(GoogleMap mapObject, LatLng location) {
-        mapObject.addMarker(new MarkerOptions().position(location).title("Current location"));
+        mapObject.addMarker(new MarkerOptions().position(location).title(getAddressFromLatLng(location)));
         initCamera(mapObject,location);
     }
 
     private void markDynamicLocationOnMap(GoogleMap mapObject, List<LatLng> locations) {
         for (LatLng location : locations) {
             refreshMap(mMap);
-            mapObject.addMarker(new MarkerOptions().position(location).title("Current location"));
+            mapObject.addMarker(new MarkerOptions().position(location).title(getAddressFromLatLng(location)));
             initCamera(mapObject,location);
         }
     }
@@ -256,14 +256,44 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private String getAddressFromLatLng(LatLng latLng) {
         Geocoder geocoder = new Geocoder(this);
+        List<Address> addresses = null;
+        String errorMessage = "";
         String address = "";
         try {
-            address = geocoder
-                    .getFromLocation( latLng.latitude, latLng.longitude, 1 )
-                    .get( 0 ).getAddressLine( 0 );
-        } catch (IOException e ) {
-            Toast.makeText(getApplicationContext(), "No marker information at this moment.", Toast.LENGTH_LONG).show();
+            addresses = geocoder
+                    .getFromLocation(latLng.latitude, latLng.longitude, 1);
+        } catch (IOException ioException) {
+            errorMessage = getString(R.string.service_not_available);
+            Log.e(TAG, errorMessage, ioException);
+        } catch (IllegalArgumentException illegalArgumentException) {
+            // Catch invalid latitude or longitude values.
+            errorMessage = getString(R.string.invalid_lat_long_used);
+            Log.e(TAG, errorMessage + ". " + "Latitude = " + latLng.latitude +
+                    ", Longitude = " +
+                    latLng.longitude, illegalArgumentException);
         }
+
+        if (addresses == null || addresses.size()  == 0) {
+            if (errorMessage.isEmpty()) {
+                errorMessage = getString(R.string.no_address_found);
+                Log.e(TAG, errorMessage);
+            }
+            return "Current location";
+        } else {
+            Address addressItem = addresses.get(0);
+            ArrayList<String> addressFragments = new ArrayList<String>();
+
+            // Fetch the address lines using getAddressLine
+            for(int i = 0; i <= addressItem.getMaxAddressLineIndex(); i++) {
+                addressFragments.add(addressItem.getAddressLine(i));
+            }
+            Log.i(TAG, getString(R.string.address_found));
+
+            for(String addressPoint : addressFragments){
+                address = addressPoint;
+            }
+        }
+
         return address;
     }
 
@@ -404,6 +434,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onStop() {
         mGoogleApiClient.disconnect();
         super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if(gps != null) {
+            gps.stopUsingGPS();
+        }
+        super.onDestroy();
     }
 
     private void showJourneysList(){
