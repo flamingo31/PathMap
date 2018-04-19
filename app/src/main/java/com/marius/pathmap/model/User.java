@@ -11,17 +11,19 @@ public class User {
 
     private static User instance;
     private ArrayList<LatLng> points;
+    private ArrayList<LatLng> pointsForRecordOff;
     private ArrayList<Date> startTime;
     private ArrayList<Date> endTime;
     private HashMap<Integer, ArrayList<LatLng>> routeTracks;
-    private int keyItem;
     private ArrayList<String> addressStart;
     private ArrayList<String> addressEnd;
+    private int keyItem;
 
 
 
     private User() {
         points = new ArrayList<>();
+        pointsForRecordOff = new ArrayList<>();
         startTime = new ArrayList<>();
         endTime = new ArrayList<>();
         routeTracks = new HashMap<>();
@@ -48,6 +50,10 @@ public class User {
         return points.size() == 0;
     }
 
+    public boolean isPointsForRecordOffEmpty() {
+        return pointsForRecordOff.size() == 0;
+    }
+
     public boolean isStartTimeEmpty() {
         return startTime.size() == 0;
     }
@@ -58,6 +64,10 @@ public class User {
 
     public void clearPoints() {
         points.clear();
+    }
+
+    public void clearPointsForRecordOff() {
+        pointsForRecordOff.clear();
     }
 
     public void clearStartTimes() {
@@ -74,6 +84,10 @@ public class User {
 
     public void addPoint(LatLng point) {
         points.add(point);
+    }
+
+    public void addPointForRecordOff(LatLng point) {
+        pointsForRecordOff.add(point);
     }
 
     public void addStartTime(Date start) {
@@ -94,6 +108,10 @@ public class User {
 
     public ArrayList<LatLng> getPoints() {
         return points;
+    }
+
+    public ArrayList<LatLng> getPointsForRecordOff() {
+        return pointsForRecordOff;
     }
 
     public void setPoints(ArrayList<LatLng> points) {
@@ -124,16 +142,25 @@ public class User {
         this.addressEnd = addressEnd;
     }
 
-    public void saveRouteTracks(ArrayList<LatLng> points){
+    public void saveRouteTracks(Integer keyItem, LatLng point){
+        points.add(point);
         if(points.size() == 0){
             return;
         }
         routeTracks.put(keyItem, points);
-        ++keyItem;
     }
 
     public HashMap<Integer, ArrayList<LatLng>> getRouteTracks() {
         return routeTracks;
     }
+
+    public void incrementKeyItem(){
+        ++keyItem;
+    }
+
+    public int getKeyItem(){
+        return keyItem;
+    }
+
 
 }

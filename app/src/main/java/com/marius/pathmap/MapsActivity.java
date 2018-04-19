@@ -140,32 +140,28 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     Intent intent = new Intent(getApplicationContext(), TrackingService.class);
                     startService(intent);
                     Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_on), Toast.LENGTH_LONG).show();
-                    if (!User.getInstance().isPointsEmpty()) {
-                        User.getInstance().addStartTime(Calendar.getInstance().getTime());
-                    } else {
-                        Toast.makeText(getApplicationContext(), getString(R.string.tracking_service_not_working), Toast.LENGTH_LONG).show();
-                    }
+                    User.getInstance().addStartTime(Calendar.getInstance().getTime());
                 } else if (!isChecked) {
                     Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_off), Toast.LENGTH_LONG).show();
-                    if (!User.getInstance().isPointsEmpty()) {
-                        User.getInstance().addEndTime(Calendar.getInstance().getTime());
-                        User.getInstance().saveRouteTracks(User.getInstance().getPoints());
-                        try {
-                            secureDataRouteTracking(User.getInstance().getAddressStart(), User.getInstance().getAddressEnd(),
-                                    User.getInstance().getStartTime(), User.getInstance().getEndTime(),
-                                    User.getInstance().getRouteTracks());
-                        } catch (Exception ex){
-                            Log.d(TAG, ex.getLocalizedMessage());
-                        }
+                    User.getInstance().addEndTime(Calendar.getInstance().getTime());
+                    try {
+                        secureDataRouteTracking(User.getInstance().getAddressStart(), User.getInstance().getAddressEnd(),
+                                User.getInstance().getStartTime(), User.getInstance().getEndTime(),
+                                User.getInstance().getRouteTracks());
+                    } catch (Exception ex){
+                        Log.d(TAG, ex.getLocalizedMessage());
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
                     PathMapSharedPreferences.getInstance(getApplicationContext()).saveTrackingState(false);
-                    List<LatLng> locationPoints = getPoints(User.getInstance().getPoints());
+                    ArrayList<LatLng> locationPoints = User.getInstance().getPointsForRecordOff();
                     if (locationPoints.size() > 0) {
                         markDynamicLocationOnMap(mMap, locationPoints);
                     } else {
                         Toast.makeText(getApplicationContext(), getString(R.string.service_error), Toast.LENGTH_LONG).show();
                     }
+                    User.getInstance().incrementKeyItem();
+                    Log.d(TAG, "After service stop, keyItem = " + User.getInstance().getKeyItem());
+                    User.getInstance().clearPoints();
                 }
             }
         });
@@ -249,8 +245,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
-        if (!User.getInstance().isPointsEmpty()) {
-            outState.putParcelableArrayList(SAVING_STATE_POINTS, User.getInstance().getPoints());
+        if (!User.getInstance().isPointsForRecordOffEmpty()) {
+            outState.putParcelableArrayList(SAVING_STATE_POINTS, User.getInstance().getPointsForRecordOff());
         }
         super.onSaveInstanceState(outState, outPersistentState);
     }
@@ -258,7 +254,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
-        if (User.getInstance().isPointsEmpty()) {
+        if (User.getInstance().isPointsForRecordOffEmpty()) {
             User.getInstance().setPoints(savedInstanceState.getParcelableArrayList(SAVING_STATE_POINTS));
         }
     }
@@ -380,7 +376,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 if(!PathMapSharedPreferences.getInstance(getApplicationContext()).getTrackingState()){
                                     mlocationPoints.add(new LatLng(latitudeValue, longitudeValue));
                                     markDynamicLocationOnMap(mMap, mlocationPoints);
-                                    User.getInstance().addPoint(new LatLng(latitudeValue, longitudeValue));
+                                    User.getInstance().addPointForRecordOff(new LatLng(latitudeValue, longitudeValue));
                                 } else {
                                     mlocationPoints.add(new LatLng(latitudeValue, longitudeValue));
                                     markDynamicLocationOnMap(mMap, mlocationPoints);
@@ -423,24 +419,16 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             assert local != null;
             if(local.equals("LOCAL")){
                 //get all data from database
-                startToPresentLocations = User.getInstance().getPoints();
+                startToPresentLocations = User.getInstance().getRouteTracks().get(User.getInstance().getKeyItem());
                 if(startToPresentLocations.size() > 0){
                     //prepare map drawing.
-                    List<LatLng> locationPoints = getPoints(startToPresentLocations);
+                    List<LatLng> locationPoints = startToPresentLocations;
                     refreshMap(mMap);
                     markDynamicLocationOnMap(mMap, locationPoints);
                     drawRouteOnMap(mMap, locationPoints);
                 }
             }
         }
-    }
-
-    private List<LatLng> getPoints(List<LatLng> mLocations){
-        List<LatLng> points = new ArrayList<LatLng>();
-        for(LatLng mLocation : mLocations){
-            points.add(new LatLng(mLocation.latitude, mLocation.longitude));
-        }
-        return points;
     }
 
     private void drawRouteOnMap(GoogleMap map, List<LatLng> positions){
