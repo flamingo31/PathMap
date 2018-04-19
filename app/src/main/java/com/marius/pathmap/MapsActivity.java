@@ -8,6 +8,10 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -62,7 +66,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         GoogleApiClient.OnConnectionFailedListener,
         GoogleMap.OnInfoWindowClickListener,
         GoogleMap.OnMapLongClickListener,
-        GoogleMap.OnMarkerClickListener {
+        GoogleMap.OnMarkerClickListener, SensorEventListener {
 
     private static final String TAG = MapsActivity.class.getSimpleName();
 
@@ -85,6 +89,23 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private RouteBroadCastReceiver routeReceiver;
     private List<LatLng> startToPresentLocations;
     private List<LatLng> mlocationPoints;
+
+    private SensorManager sensorMan;
+    private Sensor accelerometer;
+
+    private float[] mGravity;
+    private double mAccel;
+    private double mAccelCurrent;
+    private double mAccelLast;
+
+    private boolean sensorRegistered = false;
+
+    private int hitCount = 0;
+    private double hitSum = 0;
+    private double hitResult = 0;
+
+    private final int SAMPLE_SIZE = 50; //  higher is more precise but slow measure.
+    private final double THRESHOLD = 0.2; //  higher is more spike movement
 
 
     @Override
@@ -148,6 +169,57 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             }
         });
+
+        sensorMan = (SensorManager) getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
+        assert sensorMan != null;
+        accelerometer = sensorMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        mAccel = 0.00f;
+        mAccelCurrent = SensorManager.GRAVITY_EARTH;
+        mAccelLast = SensorManager.GRAVITY_EARTH;
+
+        sensorMan.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorRegistered = true;
+
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            mGravity = event.values.clone();
+            // Shake detection
+            double x = mGravity[0];
+            double y = mGravity[1];
+            double z = mGravity[2];
+            mAccelLast = mAccelCurrent;
+            mAccelCurrent = Math.sqrt(x * x + y * y + z * z);
+            double delta = mAccelCurrent - mAccelLast;
+            mAccel = mAccel * 0.9f + delta;
+
+            if (hitCount <= SAMPLE_SIZE) {
+                hitCount++;
+                hitSum += Math.abs(mAccel);
+            } else {
+                hitResult = hitSum / SAMPLE_SIZE;
+
+                Log.d(TAG, String.valueOf(hitResult));
+
+                if (hitResult > THRESHOLD) {
+                    trackOnOff.setChecked(true);
+                    Log.d(TAG, "Walking");
+                } else {
+                    trackOnOff.setChecked(false);
+                    Log.d(TAG, "Stop Walking");
+                }
+
+                hitCount = 0;
+                hitSum = 0;
+                hitResult = 0;
+            }
+        }
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
     }
 
