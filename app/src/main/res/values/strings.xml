@@ -17,5 +17,8 @@
     <string name="tracking_service_not_working">Tracking service(on network/location) is not working</string>
     <string name="service_error">There is a service error. Try to reload the app</string>
 
+    <string name="disable_tracking">Tracking disabled</string>
+    <string name="enable_tracking">Tracking enabled</string>
+
     <string name="location_permission_denied">Location Permission Denied</string>
 </resources>

@@ -88,7 +88,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private double longitudeValue = 0.0;
     private RouteBroadCastReceiver routeReceiver;
     private List<LatLng> startToPresentLocations;
-    private List<LatLng> mlocationPoints;
+    private List<LatLng> mLocationPoints;
 
     private SensorManager sensorMan;
     private Sensor accelerometer;
@@ -121,7 +121,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .build();
         }
         startToPresentLocations = User.getInstance().getPoints();
-        mlocationPoints = new ArrayList<>();
+        mLocationPoints = new ArrayList<>();
         mLocationRequest = createLocationRequest();
         routeReceiver = new RouteBroadCastReceiver();
 
@@ -179,7 +179,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
 
-
+    // for detecting the user's movements and turning the tracking service ON or OFF if is not moving
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
@@ -285,6 +285,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         initListeners();
     }
 
+    // for marking the current position when user is in motion
     private void markDynamicLocationOnMap(GoogleMap mapObject, List<LatLng> locations) {
         for (LatLng location : locations) {
             refreshMap(mMap);
@@ -307,11 +308,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mapObject.animateCamera(CameraUpdateFactory
                 .newCameraPosition(position), null);
 
-        //mapObject.setTrafficEnabled(true);
+        //mapObject.setTrafficEnabled(true); // this method could enable the traffic on the map, but will slow the app
         mapObject.setMyLocationEnabled(true);
         mapObject.getUiSettings().setZoomControlsEnabled( true );
     }
 
+    // getting address from the current position
     private String getAddressFromLatLng(LatLng latLng) {
         Geocoder geocoder = new Geocoder(this);
         List<Address> addresses = null;
@@ -381,12 +383,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 Log.d(TAG, "Latitude 4: " + latitudeValue + " Longitude 4: " + longitudeValue);
                                 refreshMap(mMap);
                                 if(!PathMapSharedPreferences.getInstance(getApplicationContext()).getTrackingState()){
-                                    mlocationPoints.add(new LatLng(latitudeValue, longitudeValue));
-                                    markDynamicLocationOnMap(mMap, mlocationPoints);
+                                    mLocationPoints.add(new LatLng(latitudeValue, longitudeValue));
+                                    markDynamicLocationOnMap(mMap, mLocationPoints);
                                     User.getInstance().addPointForRecordOff(new LatLng(latitudeValue, longitudeValue));
                                 } else {
-                                    mlocationPoints.add(new LatLng(latitudeValue, longitudeValue));
-                                    markDynamicLocationOnMap(mMap, mlocationPoints);
+                                    mLocationPoints.add(new LatLng(latitudeValue, longitudeValue));
+                                    markDynamicLocationOnMap(mMap, mLocationPoints);
                                 }
                             }
                         }
@@ -418,7 +420,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
 
-
+    // when receiving coordinates from the tracking service
     private class RouteBroadCastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -438,6 +440,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    // draws in real time a route on the map when the tracking service is running
     private void drawRouteOnMap(GoogleMap map, List<LatLng> positions){
         PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
         options.addAll(positions);
@@ -449,6 +452,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
+    // securing the data from the user into a file, and for retaining the data after uninstalling the app I could implement a cache method to save the data in a temporary file
     private void secureDataRouteTracking(ArrayList<String> addressStart, ArrayList<String> addressEnd,
                                          ArrayList<Date> startTime, ArrayList<Date> endTime,
                                          HashMap<Integer, ArrayList<LatLng>> routeTracks){
@@ -507,13 +511,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void enableTrackingSwitch(){
         trackOnOff.setEnabled(true);
-        Toast.makeText(getApplicationContext(), "Tracking enabled", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), getString(R.string.enable_tracking), Toast.LENGTH_SHORT).show();
     }
 
     private void disableTrackingSwitch(){
         trackOnOff.setChecked(false);
         trackOnOff.setEnabled(false);
-        Toast.makeText(getApplicationContext(), "Tracking disabled", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), getString(R.string.disable_tracking), Toast.LENGTH_SHORT).show();
     }
 
     @Override

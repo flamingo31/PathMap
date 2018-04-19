@@ -6,7 +6,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-
+/*
+ I have choose to make a singleton model because I could manage much better the data for the user.
+* */
 public class User {
 
     private static User instance;
