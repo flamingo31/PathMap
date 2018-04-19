@@ -139,10 +139,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     PathMapSharedPreferences.getInstance(getApplicationContext()).saveTrackingState(true);
                     Intent intent = new Intent(getApplicationContext(), TrackingService.class);
                     startService(intent);
-                    Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_on), Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_on), Toast.LENGTH_SHORT).show();
                     User.getInstance().addStartTime(Calendar.getInstance().getTime());
                 } else if (!isChecked) {
-                    Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_off), Toast.LENGTH_LONG).show();
+                    Toast.makeText(getApplicationContext(), getString(R.string.route_tracking_off), Toast.LENGTH_SHORT).show();
                     User.getInstance().addEndTime(Calendar.getInstance().getTime());
                     try {
                         secureDataRouteTracking(User.getInstance().getAddressStart(), User.getInstance().getAddressEnd(),
@@ -157,7 +157,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     if (locationPoints.size() > 0) {
                         markDynamicLocationOnMap(mMap, locationPoints);
                     } else {
-                        Toast.makeText(getApplicationContext(), getString(R.string.service_error), Toast.LENGTH_LONG).show();
+                        Toast.makeText(getApplicationContext(), getString(R.string.service_error), Toast.LENGTH_SHORT).show();
                     }
                     User.getInstance().incrementKeyItem();
                     Log.d(TAG, "After service stop, keyItem = " + User.getInstance().getKeyItem());
@@ -177,6 +177,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         sensorRegistered = true;
 
     }
+
+
 
     @Override
     public void onSensorChanged(SensorEvent event) {
@@ -200,11 +202,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 Log.d(TAG, String.valueOf(hitResult));
 
                 if (hitResult > THRESHOLD) {
-                    trackOnOff.setChecked(true);
-                    Log.d(TAG, "Walking");
+                    if(trackOnOff.isEnabled()) {
+                        trackOnOff.setChecked(true);
+                        Log.d(TAG, "Walking");
+                    }
                 } else {
-                    trackOnOff.setChecked(false);
-                    Log.d(TAG, "Stop Walking");
+                    if(trackOnOff.isEnabled()) {
+                        trackOnOff.setChecked(false);
+                        Log.d(TAG, "Stop Walking");
+                    }
                 }
 
                 hitCount = 0;
@@ -235,6 +241,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.showJourneys:
+                disableTrackingSwitch();
                 showJourneysList();
                 break;
             default:
@@ -498,9 +505,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         return mLocationRequest;
     }
 
+    private void enableTrackingSwitch(){
+        trackOnOff.setEnabled(true);
+        Toast.makeText(getApplicationContext(), "Tracking enabled", Toast.LENGTH_SHORT).show();
+    }
+
+    private void disableTrackingSwitch(){
+        trackOnOff.setChecked(false);
+        trackOnOff.setEnabled(false);
+        Toast.makeText(getApplicationContext(), "Tracking disabled", Toast.LENGTH_SHORT).show();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
+        enableTrackingSwitch();
         if(routeReceiver == null){
             routeReceiver = new RouteBroadCastReceiver();
         }
@@ -516,6 +535,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     protected void onStart() {
+        enableTrackingSwitch();
         mGoogleApiClient.connect();
         super.onStart();
     }
