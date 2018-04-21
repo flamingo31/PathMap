@@ -2,36 +2,32 @@ package com.marius.pathmap.model;
 
 import com.google.android.gms.maps.model.LatLng;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashMap;
+import java.util.Vector;
+
 /*
  I have choose to make a singleton model because I could manage much better the data for the user.
 * */
 public class User {
 
     private static User instance;
-    private ArrayList<LatLng> points;
-    private ArrayList<LatLng> pointsForRecordOff;
-    private ArrayList<Date> startTime;
-    private ArrayList<Date> endTime;
-    private HashMap<Integer, ArrayList<LatLng>> routeTracks;
-    private ArrayList<String> addressStart;
-    private ArrayList<String> addressEnd;
-    private int keyItem;
+    private Vector<LatLng> points;
+    private Vector<LatLng> pointsForRecordOff;
+    private Vector<Date> startTime;
+    private Vector<Date> endTime;
+    private String addressStart;
+    private String addressEnd;
 
 
 
     private User() {
-        points = new ArrayList<>();
-        pointsForRecordOff = new ArrayList<>();
-        startTime = new ArrayList<>();
-        endTime = new ArrayList<>();
-        routeTracks = new HashMap<>();
-        addressStart = new ArrayList<>();
-        addressEnd = new ArrayList<>();
-        keyItem = 0;
+        points = new Vector<>();
+        pointsForRecordOff = new Vector<>();
+        startTime = new Vector<>();
+        endTime = new Vector<>();
+        addressStart = "";
+        addressEnd = "";
     }
 
     public static synchronized User getInstance() {
@@ -80,10 +76,6 @@ public class User {
         endTime.clear();
     }
 
-    public void clearAddressStart(){ addressStart.clear(); }
-
-    public void clearAddressEnd(){ addressEnd.clear(); }
-
     public void addPoint(LatLng point) {
         points.add(point);
     }
@@ -101,68 +93,39 @@ public class User {
     }
 
     public void addAddressStart(String address){
-        this.addressStart.add(address);
+        this.addressStart = address;
     }
 
     public void addAddressEnd(String address){
-        this.addressEnd.add(address);
+        this.addressEnd= address;
     }
 
-    public ArrayList<LatLng> getPoints() {
+    public Vector<LatLng> getPoints() {
         return points;
     }
 
-    public ArrayList<LatLng> getPointsForRecordOff() {
+    public Vector<LatLng> getPointsForRecordOff() {
         return pointsForRecordOff;
     }
 
-    public void setPoints(ArrayList<LatLng> points) {
+    public void setPoints(Vector<LatLng> points) {
         this.points = points;
     }
 
-    public ArrayList<Date> getStartTime() {
+    public Vector<Date> getStartTime() {
         return startTime;
     }
 
-    public ArrayList<Date> getEndTime() {
+    public Vector<Date> getEndTime() {
         return endTime;
     }
 
-    public ArrayList<String> getAddressStart() {
+    public String getAddressStart() {
         return addressStart;
     }
 
-    public void setAddressStart(ArrayList<String> addressStart) {
-        this.addressStart = addressStart;
-    }
-
-    public ArrayList<String> getAddressEnd() {
+    public String getAddressEnd() {
         return addressEnd;
     }
-
-    public void setAddressEnd(ArrayList<String> addressEnd) {
-        this.addressEnd = addressEnd;
-    }
-
-    public void saveRouteTracks(Integer keyItem, LatLng point){
-        points.add(point);
-        if(points.size() == 0){
-            return;
-        }
-        routeTracks.put(keyItem, points);
-    }
-
-    public HashMap<Integer, ArrayList<LatLng>> getRouteTracks() {
-        return routeTracks;
-    }
-
-    public void incrementKeyItem(){
-        ++keyItem;
-    }
-
-    public int getKeyItem(){
-        return keyItem;
-    }
-
 
 }

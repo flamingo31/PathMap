@@ -15,7 +15,6 @@ import android.hardware.SensorManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
-import android.os.PersistableBundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -59,8 +58,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Vector;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
@@ -69,8 +68,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         GoogleMap.OnMarkerClickListener, SensorEventListener {
 
     private static final String TAG = MapsActivity.class.getSimpleName();
-
-    private static final String SAVING_STATE_POINTS = "savingStatePoints";
 
     private GoogleMap mMap;
     private Switch trackOnOff;
@@ -89,8 +86,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private RouteBroadCastReceiver routeReceiver;
     private List<LatLng> startToPresentLocations;
     private List<LatLng> mLocationPoints;
+    private boolean isAutoDetectEnabled;
 
-    private SensorManager sensorMan;
+    private SensorManager sensorManager;
     private Sensor accelerometer;
 
     private float[] mGravity;
@@ -104,8 +102,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private double hitSum = 0;
     private double hitResult = 0;
 
-    private final int SAMPLE_SIZE = 50; //  higher is more precise but slow measure.
-    private final double THRESHOLD = 0.2; //  higher is more spike movement
+    private final int sampleSize = 50; //  higher is more precise but slow measure.
+    private final double threshold = 0.2; //  higher is more spike movement
 
 
     @Override
@@ -121,9 +119,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     .build();
         }
         startToPresentLocations = User.getInstance().getPoints();
-        mLocationPoints = new ArrayList<>();
+        mLocationPoints = new Vector<>();
         mLocationRequest = createLocationRequest();
         routeReceiver = new RouteBroadCastReceiver();
+        isAutoDetectEnabled = false;
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -147,33 +146,31 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     try {
                         secureDataRouteTracking(User.getInstance().getAddressStart(), User.getInstance().getAddressEnd(),
                                 User.getInstance().getStartTime(), User.getInstance().getEndTime(),
-                                User.getInstance().getRouteTracks());
+                                User.getInstance().getPoints());
                     } catch (Exception ex){
                         Log.d(TAG, ex.getLocalizedMessage());
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
                     PathMapSharedPreferences.getInstance(getApplicationContext()).saveTrackingState(false);
-                    ArrayList<LatLng> locationPoints = User.getInstance().getPointsForRecordOff();
+                    Vector<LatLng> locationPoints = User.getInstance().getPointsForRecordOff();
                     if (locationPoints.size() > 0) {
                         markDynamicLocationOnMap(mMap, locationPoints);
                     } else {
                         Toast.makeText(getApplicationContext(), getString(R.string.service_error), Toast.LENGTH_SHORT).show();
                     }
-                    User.getInstance().incrementKeyItem();
-                    Log.d(TAG, "After service stop, keyItem = " + User.getInstance().getKeyItem());
                     User.getInstance().clearPoints();
                 }
             }
         });
 
-        sensorMan = (SensorManager) getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
-        assert sensorMan != null;
-        accelerometer = sensorMan.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        sensorManager = (SensorManager) getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
+        assert sensorManager != null;
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         mAccel = 0.00f;
         mAccelCurrent = SensorManager.GRAVITY_EARTH;
         mAccelLast = SensorManager.GRAVITY_EARTH;
 
-        sensorMan.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         sensorRegistered = true;
 
     }
@@ -193,21 +190,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             double delta = mAccelCurrent - mAccelLast;
             mAccel = mAccel * 0.9f + delta;
 
-            if (hitCount <= SAMPLE_SIZE) {
+            if (hitCount <= sampleSize) {
                 hitCount++;
                 hitSum += Math.abs(mAccel);
             } else {
-                hitResult = hitSum / SAMPLE_SIZE;
+                hitResult = hitSum / sampleSize;
 
                 Log.d(TAG, String.valueOf(hitResult));
 
-                if (hitResult > THRESHOLD) {
-                    if(trackOnOff.isEnabled()) {
+                if (hitResult > threshold) {
+                    if(trackOnOff.isEnabled() && isAutoDetectEnabled) {
                         trackOnOff.setChecked(true);
                         Log.d(TAG, "Walking");
                     }
                 } else {
-                    if(trackOnOff.isEnabled()) {
+                    if(trackOnOff.isEnabled() && isAutoDetectEnabled) {
                         trackOnOff.setChecked(false);
                         Log.d(TAG, "Stop Walking");
                     }
@@ -244,25 +241,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 disableTrackingSwitch();
                 showJourneysList();
                 break;
+            case R.id.enableAutoDetect:
+                enableOrDisableAutoDetect(true);
+                break;
+            case R.id.disableAutoDetect:
+                enableOrDisableAutoDetect(false);
+                break;
             default:
                 break;
         }
         return true;
     }
 
-    @Override
-    public void onSaveInstanceState(Bundle outState, PersistableBundle outPersistentState) {
-        if (!User.getInstance().isPointsForRecordOffEmpty()) {
-            outState.putParcelableArrayList(SAVING_STATE_POINTS, User.getInstance().getPointsForRecordOff());
-        }
-        super.onSaveInstanceState(outState, outPersistentState);
-    }
-
-    @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-        if (User.getInstance().isPointsForRecordOffEmpty()) {
-            User.getInstance().setPoints(savedInstanceState.getParcelableArrayList(SAVING_STATE_POINTS));
+    private void enableOrDisableAutoDetect(boolean isEnableOrDisable){
+        this.isAutoDetectEnabled = isEnableOrDisable;
+        if(isEnableOrDisable){
+            Toast.makeText(getApplicationContext(),getString(R.string.auto_detect_enabled), Toast.LENGTH_SHORT).show();
+        } else {
+            Toast.makeText(getApplicationContext(),getString(R.string.auto_detect_disabled), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -428,7 +424,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             assert local != null;
             if(local.equals("LOCAL")){
                 //get all data from database
-                startToPresentLocations = User.getInstance().getRouteTracks().get(User.getInstance().getKeyItem());
+                startToPresentLocations = User.getInstance().getPoints();
                 if(startToPresentLocations.size() > 0){
                     //prepare map drawing.
                     List<LatLng> locationPoints = startToPresentLocations;
@@ -453,22 +449,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     // securing the data from the user into a file, and for retaining the data after uninstalling the app I could implement a cache method to save the data in a temporary file
-    private void secureDataRouteTracking(ArrayList<String> addressStart, ArrayList<String> addressEnd,
-                                         ArrayList<Date> startTime, ArrayList<Date> endTime,
-                                         HashMap<Integer, ArrayList<LatLng>> routeTracks){
+    private void secureDataRouteTracking(String addressStart, String addressEnd,
+                                         Vector<Date> startTime, Vector<Date> endTime,
+                                         Vector<LatLng> routeTracks){
         final String FILE_NAME = "user_route_tracking.txt";
         StringBuilder buildDataString = new StringBuilder();
-        for(int i = 0, j = 0; i < routeTracks.keySet().size() && (j < addressStart.size() && j < addressEnd.size()); i++, j++){
-            buildDataString.append(addressStart.get(j));
+        for(int i = 0; i < routeTracks.size(); i++){
+            buildDataString.append(addressStart);
             buildDataString.append(" ");
-            buildDataString.append(startTime.get(i));
+            buildDataString.append(startTime.get(i).toString());
             buildDataString.append(" - ");
-            buildDataString.append(addressEnd.get(j));
+            buildDataString.append(addressEnd);
             buildDataString.append(" ");
-            buildDataString.append(endTime.get(i));
+            buildDataString.append(endTime.get(i).toString());
             buildDataString.append(": { ");
-            for(int k = 0; k < routeTracks.get(i).size(); k++) {
-                buildDataString.append(routeTracks.get(i).get(k).toString());
+            for(int k = 0; k < routeTracks.size(); k++) {
+                buildDataString.append(routeTracks.get(k).toString());
                 buildDataString.append(" ; ");
             }
             buildDataString.append(" }");
@@ -539,7 +535,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     protected void onStart() {
-        enableTrackingSwitch();
         mGoogleApiClient.connect();
         super.onStart();
     }

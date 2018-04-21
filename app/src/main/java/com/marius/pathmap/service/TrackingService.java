@@ -133,7 +133,7 @@ public class TrackingService extends Service implements GoogleApiClient.Connecti
             longitudeValue = location.getLongitude();
             Log.d(TAG, "Latitude " + latitudeValue + " Longitude " + longitudeValue);
             // insert values to local user
-            User.getInstance().saveRouteTracks(User.getInstance().getKeyItem(), new LatLng(latitudeValue,longitudeValue));
+            User.getInstance().addPoint(new LatLng(latitudeValue,longitudeValue));
             // send local broadcast receiver to application components
             Intent localBroadcastIntent = new Intent(ACTION);
             localBroadcastIntent.putExtra("RESULT_CODE", "LOCAL");

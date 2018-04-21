@@ -5,7 +5,9 @@
     <string name="error_location_provider">Error location provider</string>
     <string name="tracking_text_prompt">Tracking</string>
     <string name="dialog_title">Your Journeys</string>
-    <string name="item_menu_name">Journeys</string>
+    <string name="item_menu_journeys">Journeys</string>
+    <string name="item_menu_enable">Enable Auto Detect</string>
+    <string name="item_menu_disable">Disable Auto Detect</string>
 
     <string name="invalid_lat_long_used">Invalid latitude and longitude used</string>
     <string name="service_not_available">Service not available</string>
@@ -19,6 +21,8 @@
 
     <string name="disable_tracking">Tracking disabled</string>
     <string name="enable_tracking">Tracking enabled</string>
+    <string name="auto_detect_enabled">Auto Detect enabled</string>
+    <string name="auto_detect_disabled">Auto Detect disabled</string>
 
     <string name="location_permission_denied">Location Permission Denied</string>
 </resources>

@@ -25,8 +25,8 @@ public class JourneysActivity extends AppCompatActivity {
         arrayList = new ArrayList<>();
 
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        for(int i = 0, j = 0, k = 0; i < User.getInstance().getStartTime().size() && j < User.getInstance().getEndTime().size() && (k < User.getInstance().getAddressStart().size() && k < User.getInstance().getAddressEnd().size()); i++, j++, k++){
-            arrayList.add(i + ". " + User.getInstance().getAddressStart().get(k) + " " + dateFormat.format(User.getInstance().getStartTime().get(i)) + " - " + User.getInstance().getAddressEnd().get(k) + " " +dateFormat.format(User.getInstance().getEndTime().get(j)));
+        for(int i = 0, j = 0; i < User.getInstance().getStartTime().size() && j < User.getInstance().getEndTime().size(); i++, j++){
+            arrayList.add(i + ". " + User.getInstance().getAddressStart() + " " + dateFormat.format(User.getInstance().getStartTime().get(i)) + " - " + User.getInstance().getAddressEnd() + " " +dateFormat.format(User.getInstance().getEndTime().get(j)));
         }
 
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(getApplicationContext(),R.layout.list_item_journey, R.id.textView, arrayList);

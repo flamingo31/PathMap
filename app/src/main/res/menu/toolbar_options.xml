@@ -5,7 +5,19 @@
 
     <item
         android:id="@+id/showJourneys"
-        android:title="@string/item_menu_name"
+        android:title="@string/item_menu_journeys"
+        app:showAsAction="never"
+        />
+
+    <item
+        android:id="@+id/enableAutoDetect"
+        android:title="@string/item_menu_enable"
+        app:showAsAction="never"
+        />
+
+    <item
+        android:id="@+id/disableAutoDetect"
+        android:title="@string/item_menu_disable"
         app:showAsAction="never"
         />
 
