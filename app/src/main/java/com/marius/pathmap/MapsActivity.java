@@ -45,7 +45,6 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.marius.pathmap.model.User;
@@ -152,12 +151,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     }
                     PathMapSharedPreferences.getInstance(getApplicationContext()).removeTrackingState();
                     PathMapSharedPreferences.getInstance(getApplicationContext()).saveTrackingState(false);
-                    Vector<LatLng> locationPoints = User.getInstance().getPointsForRecordOff();
-                    if (locationPoints.size() > 0) {
-                        markDynamicLocationOnMap(mMap, locationPoints);
-                    } else {
-                        Toast.makeText(getApplicationContext(), getString(R.string.service_error), Toast.LENGTH_SHORT).show();
-                    }
+                    initCamera(mMap, new LatLng(latitudeValue,longitudeValue));
                     User.getInstance().clearPoints();
                 }
             }
@@ -172,9 +166,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
         sensorRegistered = true;
-
     }
-
 
     // for detecting the user's movements and turning the tracking service ON or OFF if is not moving
     @Override
@@ -274,20 +266,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         initListeners();
-    }
-
-    // for marking the current position when user is in motion
-    private void markDynamicLocationOnMap(GoogleMap mapObject, List<LatLng> locations) {
-        for (LatLng location : locations) {
-            refreshMap(mMap);
-            mapObject.addMarker(new MarkerOptions().position(location).title(getAddressFromLatLng(location)));
-            initCamera(mapObject,location);
-        }
     }
 
     private void initCamera(GoogleMap mapObject, LatLng location) {
@@ -378,14 +360,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 longitudeValue = mLastLocation.getLongitude();
                                 Log.d(TAG, "Latitude 4: " + latitudeValue + " Longitude 4: " + longitudeValue);
                                 refreshMap(mMap);
-                                if(!PathMapSharedPreferences.getInstance(getApplicationContext()).getTrackingState()){
-                                    mLocationPoints.add(new LatLng(latitudeValue, longitudeValue));
-                                    markDynamicLocationOnMap(mMap, mLocationPoints);
-                                    User.getInstance().addPointForRecordOff(new LatLng(latitudeValue, longitudeValue));
-                                } else {
-                                    mLocationPoints.add(new LatLng(latitudeValue, longitudeValue));
-                                    markDynamicLocationOnMap(mMap, mLocationPoints);
-                                }
+                                initCamera(mMap, new LatLng(latitudeValue,longitudeValue));
                             }
                         }
                         break;
@@ -429,7 +404,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     //prepare map drawing.
                     List<LatLng> locationPoints = startToPresentLocations;
                     refreshMap(mMap);
-                    markDynamicLocationOnMap(mMap, locationPoints);
                     drawRouteOnMap(mMap, locationPoints);
                 }
             }
